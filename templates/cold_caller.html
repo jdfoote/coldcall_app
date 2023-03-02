@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Random Student Picker</title>
+    <link rel="stylesheet" href='/static/main.css' />
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="{{ url_for('static', filename='process_button.js') }}"></script>
+</head>
+<body>
+<h3>
+The next student is:
+</h3>
+
+<h2 id='studentName' name='studentName'>{{student}}</h2>
+
+<form method="post" id="todo-form">
+        <button class='rand-button' type="submit">Get random student</button>
+
+</form>
+
+
+<button class='assessment' id="goodButton" value="G">Good</button>
+<button class='assessment' id="badButton" value="B">Bad</button>
+<button class='assessment' id="neutralButton" value="M">Neutral</button>
+<button class='assessment' id="absentButton" value="absent">Absent</button>
+
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Random Student Picker</title>
+    <link rel="stylesheet" href='/static/main.css' />
+</head>
+<body>
+<h3>
+  Groups:
+</h3>
+
+{% for group in result %}
+<h2>Group {{group[0]}}</h2>
+
+<ul>
+  {% for member in group[1] %}
+  <li> {{member}} </li>
+  {% endfor %}
+</ul>
+
+{% endfor %}
+
+
+</body>
+</html>
