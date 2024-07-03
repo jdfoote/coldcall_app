@@ -19,6 +19,7 @@ def response_quality():
     student_name = request.form['studentName']
     button_value = request.form['buttonValue']
     course = request.form['course']
+    print(button_value)
 
     fn = f'../assessments/{course}/{course}.csv'
 
@@ -28,24 +29,35 @@ def response_quality():
     else:
         answered = 'T'
 
-    write_to_file(student_name, fn,
-            answered=answered,
-            assessment=button_value)
-
-    return 'Received feedback from ' + student_name + ': ' + button_value
+    if button_value != 'get_next':
+        write_to_file(student_name, fn,
+                answered=answered,
+                assessment=button_value)
+    student = coldcall_student(course)
+    print(f'Sending {student}')
+    return student
 
 @app.route("/coldcaller/<course>", methods=['POST','GET'])
 def coldcaller(course):
-    if course not in ["com_304","com_411","com_674"]:
-        abort(404)
+    public = request.args.get('public')
+    print(public)
+    if request.method == "POST":
+        student = coldcall_student(course)
+        if not student:
+            abort(404)
+    else:
+        student = ''
+    return render_template('cold_caller.html', student=student, public=public)
+
+def coldcall_student(course):
+    if course not in ["com_304","com_411","com_674", "amap"]:
+        return None
     weight = 2
     students = pd.read_csv(f'../assessments/{course}/{course}_students.csv').Name
-    student = ''
     out_fn = f'../assessments/{course}/{course}.csv'
     caller = Caller(out_fn, students, weight)
-    if request.method == "POST":
-        student = caller.get_random_student()
-    return render_template('cold_caller.html', student=student)
+    student = caller.get_random_student()
+    return student
 
 @app.route("/shuffler", methods=['POST','GET']) 
 def shuffler():
@@ -112,6 +124,7 @@ class Caller:
             self.absent_today = df.loc[(df.date==self.today) & (df.answered.isin(['F', 'FALSE'])), 'name']
         except FileNotFoundError or IndexError:
             times_called = pd.DataFrame()
+            self.absent_today = pd.DataFrame()
         return times_called
 
     def update_weight(self, student):
@@ -123,8 +136,6 @@ class Caller:
         else:
             curr_weights = self.weights_dict
         for student in set(self.absent_today):
-            print(curr_weights.keys())
-            print(student in curr_weights)
             if student != self.last_chosen:
                 del curr_weights[student]
         rand_student = choices(list(curr_weights.keys()), weights=list(curr_weights.values()), k=1)[0]
