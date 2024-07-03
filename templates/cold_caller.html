@@ -13,17 +13,29 @@ The next student is:
 
 <h2 id='studentName' name='studentName'>{{student}}</h2>
 
-<form method="post" id="todo-form">
-        <button class='rand-button' type="submit">Get random student</button>
 
-</form>
+{% if student != '' %}
 
 
+  {% if public is none %}
 <button class='assessment' id="goodButton" value="G">Good</button>
 <button class='assessment' id="badButton" value="B">Bad</button>
 <button class='assessment' id="neutralButton" value="M">Neutral</button>
 <button class='assessment' id="absentButton" value="absent">Absent</button>
+<button class='assessment' id="nextButton" value="get_next">Skip</button>
 
+
+  {% else %}
+<button class='assessment' id="neutralButton" value="?">Next Student</button>
+<button class='assessment' id="absentButton" value="absent">Absent</button>
+  {% endif %}
+
+{% else %}
+<form method="post" id="todo-form">
+        <button class='rand-button' type="submit">Get random student</button>
+
+</form>
+{% endif %}
 
 </body>
 </html>

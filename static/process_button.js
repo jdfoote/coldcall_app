@@ -1,5 +1,5 @@
 $(document).ready(function() {
-   $('#goodButton, #badButton, #neutralButton, #absentButton').on('click', function() {
+   $('#goodButton, #badButton, #neutralButton, #absentButton, #nextButton').on('click', function() {
        var studentName = $('#studentName').text();
        console.log(studentName);
        var buttonValue = $(this).val();
@@ -13,7 +13,7 @@ $(document).ready(function() {
               course: courseCode
            },
            success: function(response) {
-              console.log(response);
+              $('#studentName').text(response);
            },
            error: function(error) {
               console.log(error);
