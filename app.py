@@ -19,7 +19,6 @@ def response_quality():
     student_name = request.form['studentName']
     button_value = request.form['buttonValue']
     course = request.form['course']
-    print(button_value)
 
     fn = f'../assessments/{course}/{course}.csv'
 
@@ -34,13 +33,11 @@ def response_quality():
                 answered=answered,
                 assessment=button_value)
     student = coldcall_student(course)
-    print(f'Sending {student}')
     return student
 
 @app.route("/coldcaller/<course>", methods=['POST','GET'])
 def coldcaller(course):
     public = request.args.get('public')
-    print(public)
     if request.method == "POST":
         student = coldcall_student(course)
         if not student:
