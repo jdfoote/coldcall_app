@@ -6,6 +6,7 @@ You will also need to install Flask and pandas via pip or similar.
 
 Before running the app, you will need to set up folders for each class you'd like to use it for. The default structure is this: 
 
+```
 top-level-directory/
 ├── assessments/               # Root directory for all class data
 │   ├── class_1/               # Directory for first class
@@ -13,6 +14,7 @@ top-level-directory/
 │   └── class_2/               # Directory for second class
 │       └── class_2_students.csv    # CSV file containing student data for class 2
 └── coldcall_app/              # Application directory
+```
 
 If you want to change the structure, you'll just need to change a few hardcoded paths in `app.py`
 
