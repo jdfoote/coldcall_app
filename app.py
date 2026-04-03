@@ -13,8 +13,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 
 # Enable Flask logging
-logging.basicConfig(level=logging.INFO)
-app.logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.ERROR)
+app.logger.setLevel(logging.ERROR)
 
 # Configuration
 BASE_DIR = Path(__file__).parent
@@ -184,12 +184,22 @@ class Caller:
 
     def mark_absent(self, student):
         """Mark a student as absent today"""
+        self._check_date()
         self.absent_students.add(student)
 
     def update_weight(self, student):
         self.weights_dict[student] /= self.weight
 
+    def _check_date(self):
+        """If the date has changed, reset absent set and refresh weights."""
+        today = datetime.now().date()
+        if today != self.today:
+            self.today = today
+            self.absent_students = set()
+            self.weights_dict = self.get_weights()
+
     def get_random_student(self, can_repeat=False):
+        self._check_date()
         if not can_repeat:
             curr_weights = {k:v for k,v in self.weights_dict.items() if k != self.last_chosen}
         else:
