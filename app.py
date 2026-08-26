@@ -19,7 +19,7 @@ app.logger.setLevel(logging.ERROR)
 # Configuration
 BASE_DIR = Path(__file__).parent
 ASSESSMENTS_DIR = BASE_DIR.parent / 'assessments'
-ALLOWED_COURSES = ["com_304", "com_411", "com_674", "amap"]
+ALLOWED_COURSES = ["com_304", "com_411", "com_674", "amap", "com_324"]
 
 # Store caller instances per course to maintain state
 callers = {}
@@ -35,18 +35,22 @@ def response_quality():
         student_name = request.form['studentName']
         button_value = request.form['buttonValue']
         course = request.form['course']
-        
+
         course_path = get_course_path(course)
         fn = course_path / f'{course}.csv'
+
+        caller = get_caller(course)
 
         if button_value == 'absent':
             answered = 'F'
             button_value = ''
-            # Update the Caller object
-            caller = get_caller(course)
             caller.mark_absent(student_name)
+        elif button_value == 'get_next':
+            answered = 'T'  # not written to file
+            caller.mark_skipped(student_name)
         else:
             answered = 'T'
+            caller.clear_skipped()
 
         if button_value != 'get_next':
             write_to_file(student_name, fn,
@@ -152,7 +156,8 @@ class Caller:
         self.students = students
         self.last_chosen = None
         self.today = datetime.now().date()
-        self.absent_students = set()  # Track absences in memory
+        self.absent_students = set()
+        self.skipped_students = set()
         self.weights_dict = self.get_weights()
 
     def get_weights(self):
@@ -187,15 +192,22 @@ class Caller:
         self._check_date()
         self.absent_students.add(student)
 
+    def mark_skipped(self, student):
+        self.skipped_students.add(student)
+
+    def clear_skipped(self):
+        self.skipped_students = set()
+
     def update_weight(self, student):
         self.weights_dict[student] /= self.weight
 
     def _check_date(self):
-        """If the date has changed, reset absent set and refresh weights."""
+        """If the date has changed, reset absent/skipped sets and refresh weights."""
         today = datetime.now().date()
         if today != self.today:
             self.today = today
             self.absent_students = set()
+            self.skipped_students = set()
             self.weights_dict = self.get_weights()
 
     def get_random_student(self, can_repeat=False):
@@ -204,17 +216,23 @@ class Caller:
             curr_weights = {k:v for k,v in self.weights_dict.items() if k != self.last_chosen}
         else:
             curr_weights = self.weights_dict.copy()
-        
-        # Remove absent students from current selection
+
+        # Remove absent students
         curr_weights = {k:v for k,v in curr_weights.items() if k not in self.absent_students}
-        
+
+        # Remove skipped students; if everyone has been skipped, reset and start over
+        non_skipped = {k:v for k,v in curr_weights.items() if k not in self.skipped_students}
+        if non_skipped:
+            curr_weights = non_skipped
+        else:
+            self.skipped_students = set()
+            # curr_weights already excludes absent (and last_chosen if applicable)
+
         if not curr_weights:
-            # Fallback: if all students filtered out, use all weights
             curr_weights = self.weights_dict.copy()
-        
-        app.logger.info(f"Getting random student with can_repeat={can_repeat}. Current weights: {self.weights_dict}\nAbsent students: {self.absent_students}")
+
+        app.logger.info(f"Getting random student with can_repeat={can_repeat}. Current weights: {self.weights_dict}\nAbsent students: {self.absent_students}\nSkipped students: {self.skipped_students}")
         rand_student = choices(list(curr_weights.keys()), weights=list(curr_weights.values()), k=1)[0]
-        print(f"Weight of {rand_student}: {curr_weights[rand_student]}")
         self.last_chosen = rand_student
         return(rand_student)
 
