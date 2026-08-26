@@ -4,7 +4,6 @@ import pandas as pd
 from random import choices, shuffle
 from datetime import datetime
 import csv
-import os
 from pathlib import Path
 from flask import Flask, render_template, request, abort
 import logging
@@ -99,10 +98,7 @@ def get_caller(course):
     return callers[course]
 
 def coldcall_student(course):
-    """Get a weighted random student for the course"""
-    caller = get_caller(course)
-    student = caller.get_random_student()
-    return student
+    return get_caller(course).get_random_student()
 
 @app.route("/shuffler", methods=['POST','GET']) 
 def shuffler():
@@ -179,12 +175,11 @@ class Caller:
                 self.last_chosen = df.name.iloc[-1]
             df['date'] = pd.to_datetime(df['date']).dt.date
             times_called = df[(df.answered.isin(['T','TRUE']))|(df['date']==self.today)].groupby('name').size()
-            self.absent_today = df.loc[(df['date']==self.today) & (df.answered.isin(['F', 'FALSE'])), 'name']
-            # Initialize absent_students from file
-            self.absent_students = set(self.absent_today.tolist())
+            absent_today = df.loc[(df['date']==self.today) & (df.answered.isin(['F', 'FALSE'])), 'name']
+            self.absent_students = set(absent_today.tolist())
         except (FileNotFoundError, IndexError):
-            times_called = pd.DataFrame()
-            self.absent_today = pd.DataFrame()
+            times_called = pd.Series(dtype=int)
+            self.absent_students = set()
         return times_called
 
     def mark_absent(self, student):
@@ -198,9 +193,6 @@ class Caller:
     def clear_skipped(self):
         self.skipped_students = set()
 
-    def update_weight(self, student):
-        self.weights_dict[student] /= self.weight
-
     def _check_date(self):
         """If the date has changed, reset absent/skipped sets and refresh weights."""
         today = datetime.now().date()
@@ -210,12 +202,9 @@ class Caller:
             self.skipped_students = set()
             self.weights_dict = self.get_weights()
 
-    def get_random_student(self, can_repeat=False):
+    def get_random_student(self):
         self._check_date()
-        if not can_repeat:
-            curr_weights = {k:v for k,v in self.weights_dict.items() if k != self.last_chosen}
-        else:
-            curr_weights = self.weights_dict.copy()
+        curr_weights = {k:v for k,v in self.weights_dict.items() if k != self.last_chosen}
 
         # Remove absent students
         curr_weights = {k:v for k,v in curr_weights.items() if k not in self.absent_students}
@@ -226,23 +215,19 @@ class Caller:
             curr_weights = non_skipped
         else:
             self.skipped_students = set()
-            # curr_weights already excludes absent (and last_chosen if applicable)
 
         if not curr_weights:
             curr_weights = self.weights_dict.copy()
 
-        app.logger.info(f"Getting random student with can_repeat={can_repeat}. Current weights: {self.weights_dict}\nAbsent students: {self.absent_students}\nSkipped students: {self.skipped_students}")
-        rand_student = choices(list(curr_weights.keys()), weights=list(curr_weights.values()), k=1)[0]
-        self.last_chosen = rand_student
-        return(rand_student)
+        app.logger.info(f"Current weights: {self.weights_dict}\nAbsent: {self.absent_students}\nSkipped: {self.skipped_students}")
+        self.last_chosen = choices(list(curr_weights.keys()), weights=list(curr_weights.values()), k=1)[0]
+        return self.last_chosen
 
 def write_to_file(student, fn, answered, assessment):
-    if not os.path.exists(fn):
-        with open(fn, 'w') as f:
-            f.write(','.join(['name', 'date', 'answered', 'assessment']))
-            f.write('\n')
-    with open(fn, 'a') as f:
-        out_csv = csv.writer(f)
-        out_csv.writerow([student,datetime.now().date(),answered,assessment])
+    fn = Path(fn)
+    if not fn.exists():
+        fn.write_text('name,date,answered,assessment\n')
+    with fn.open('a') as f:
+        csv.writer(f).writerow([student, datetime.now().date(), answered, assessment])
 
 
