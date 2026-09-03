@@ -7,13 +7,14 @@ import csv
 from pathlib import Path
 from flask import Flask, render_template, request, abort
 import logging
+import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 
-# Enable Flask logging
-logging.basicConfig(level=logging.ERROR)
-app.logger.setLevel(logging.ERROR)
+_log_level = getattr(logging, os.environ.get("LOG_LEVEL", "ERROR").upper(), logging.ERROR)
+logging.basicConfig(level=_log_level)
+app.logger.setLevel(_log_level)
 
 # Configuration
 BASE_DIR = Path(__file__).parent
@@ -117,23 +118,49 @@ def shuffler():
 
 @app.route("/make_groups", methods=['POST','GET'])
 def make_groups():
-    try:
-        course = request.args.get('course')
-        group_size = int(request.args.get('group_size'))
-        
+    def by_group_size():
         if group_size < 1:
             abort(400, description="Group size must be at least 1")
+        result = []
+        for i, idx in enumerate(range(0, len(student_list), group_size), 1):
+            result.append((i, student_list[idx:idx+group_size]))
+        return result
+
+    def by_num_groups():
+        result = [[] for _ in range(num_groups)]
+        i = 0
+        for student in student_list:
+            result[i].append(student)
+            i += 1
+            i = i % num_groups
+        return result
+
+    try:
+        course = request.args.get('course')
+        if 'group_size' in request.args:
+            group_size = int(request.args.get('group_size'))
+        else:
+            group_size = None
+        if 'num_groups' in request.args:
+            num_groups = int(request.args.get('num_groups'))
+        else:
+            num_groups = None
+        if group_size is None and num_groups is None:
+            abort(400, description="Provide either group_size or num_groups")
+        
         
         course_path = get_course_path(course)
         student_list = list(pd.read_csv(course_path / f'{course}_students.csv').Name)
         shuffle(student_list)
-        
-        result = []
-        for i, idx in enumerate(range(0, len(student_list), group_size), 1):
-            result.append((i, student_list[idx:idx+group_size]))
-        
-        app.logger.info(f"Created {len(result)} groups of size {group_size} for {course}")
+
+        if group_size is not None:
+            result = by_group_size()
+        else:
+            result = by_num_groups()
+
+        app.logger.info(f"Created {len(result)} groups for {course}")
         return render_template('group_maker.html', result=result)
+       
     except FileNotFoundError:
         abort(404, description="Course files not found")
     except ValueError:
