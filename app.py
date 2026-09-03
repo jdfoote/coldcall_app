@@ -127,10 +127,11 @@ def make_groups():
         return result
 
     def by_num_groups():
-        result = [[] for _ in range(num_groups)]
+        result = [(i, []) for i in range(1, num_groups + 1)]
         i = 0
+        print(student_list)
         for student in student_list:
-            result[i].append(student)
+            result[i][1].append(student)
             i += 1
             i = i % num_groups
         return result
@@ -158,6 +159,7 @@ def make_groups():
         else:
             result = by_num_groups()
 
+        print(result)
         app.logger.info(f"Created {len(result)} groups for {course}")
         return render_template('group_maker.html', result=result)
        
